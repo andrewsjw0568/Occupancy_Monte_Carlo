@@ -8,7 +8,7 @@ This repository contains the simulation code for generating and analysing meetin
   - Type II PMFs: Output from Monte Carlo simulations
   - Type III PMFs: PMFs calculated from simulated occupancy data
   - Type IV PMFs: PMFs calculated from simulated occupied data
-- Confidence intervals and cancellation probability analysis
+- Meeting cancellation probability analysis
 
 
 ## Key Components
