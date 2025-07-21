@@ -11,7 +11,7 @@ This repository contains the simulation code for generating and analysing meetin
 - Confidence intervals and cancellation probability analysis
 
 
-## 🧪 Key Components
+## Key Components
 
 - `Occupancy_Simulator.ipynb`: A high-level script to run simulations using `ScheduleManager.py` and output PMFs (Type I–IV) for meeting durations, occupancy levels, and meeting frequency.
 - `Meeting_Cancellation_Rate.ipynb`: Jupyter Notebook that uses `ScheduleManager_cancel.py` to generate and analyse meeting cancellation rates under different scheduling configurations.
