@@ -4,7 +4,7 @@ This repository contains the simulation code for generating and analysing meetin
 
 - Artificial meeting schedule generation
 - Probability mass function (PMF) estimation
-  - Type I PMFs: Input probability distributions (ground truth)
+  - Type I PMFs: Input probability distributions
   - Type II PMFs: Output from Monte Carlo simulations
   - Type III PMFs: PMFs calculated from simulated occupancy data
   - Type IV PMFs: PMFs calculated from simulated occupied data
