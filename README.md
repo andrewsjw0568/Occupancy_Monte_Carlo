@@ -27,7 +27,8 @@ Monte Carlo simulation of **office and meeting room usage** in buildings, includ
 ├── ScheduleManager_cancel.py       # Scheduler with cancellations
 ├── Room.py                         # Room object definition
 ├── Employee.py                     # Employee object definition
-├── Schedule.py / Event.py          # Scheduling primitives
+├── Event.py                         # Event object definition
+├── Schedule.py                      # Schedule object definition
 ├── Occupancy_Generator.ipynb       # Notebook to run simulations
 ├── Data/                           # Input/output data
 │   ├── office_Num1.csv …           # Daily inference datasets
@@ -159,6 +160,78 @@ Examples:
   `Room("Office", "00X", 2.3452, 2, 0.1, 0, 1, PMFs...)`  
 - **Meeting room**:  
   `Room("Meeting room", "10X", 2.3452*5, 2, 0.1, 5, 0, PMFs...)`
+
+---
+
+##  Employee object parameters
+
+The `Employee` class stores the employee’s personal details, assigned office, and associated schedules.
+
+```python
+Employee(
+  employee_id_string,      # unique identifier for the employee
+  role_string,             # role of the employee
+  assigned_office_room     # reference to the assigned Office Room
+)
+```
+
+Attributes:
+- `events_schedule` → the employee’s meeting schedule
+- `working_schedule` → planned working hours
+- `actual_working` → realised working schedule (including absences)
+
+Main methods:
+- `add_event(new_event)` / `remove_event(event)` → modify meeting schedule
+- `add_work_event(new_event)` / `remove_work_event(event)` → modify work schedule
+
+
+---
+
+##  Event object parameters
+
+The `Event` class defines meetings or work activities, storing time, type, location, and participants.
+
+```python
+Event(
+  start_time_datetime,   # start time
+  end_time_datetime,     # end time
+  event_type_string,     # type of event
+  event_room,            # Room where the event takes place
+  event_employees        # list of Employee objects
+)
+```
+
+Main methods:
+- `duration()` → compute duration of the event
+- `is_overlap(event)` → check for overlap with another event
+- `is_contained(event)` → check if fully contained in another event
+- `is_before(event)` / `is_after(event)` → chronological ordering
+- `add_employee(employee)` / `remove_employee(employee)` → update participants
+- `print()` → display start and end time
+
+
+---
+
+##  Schedule object parameters
+
+The `Schedule` class is a collection of `Event` objects with clash detection and basic operations.
+
+```python
+Schedule(
+  events_list    # list of Event objects
+)
+```
+
+Main methods:
+- `get_number_of_events()` → return number of events
+- `get_event(i)` → retrieve the i-th event
+- `add_event(event)` / `remove_event(event)` → modify schedule
+- `replace_event(current_event, new_event)` → update an event
+- `is_clash(event)` → check if a new event overlaps with existing ones
+- `is_contained(event)` → check containment
+- `sort()` → order events chronologically
+- `print()` → print all events in schedule
+
 
 ---
 
