@@ -9,7 +9,25 @@ import matplotlib.pyplot as plt
 
 
 class ScheduleManager:
+    """
+    * ScheduleManager class is responsible for creating and managing a building-wide
+    * schedule of events (meetings, office occupancy etc.). It generates random
+    * meetings according to probability mass functions (PMFs) attached to rooms,
+    * assigns employees to meetings, prevents clashes with room and employee
+    * working schedules, and exports schedules to CSV.
+    *
+    * Author: Dr. James Andrews
+    * Version: 0.1.0
+    * Date: 04/10/2025
+    """
     def __init__(self, office_rooms_list_input, meeting_rooms_list_input, employees_list_input):
+        """
+        * Initialise the ScheduleManager with lists of offices, meeting rooms and employees.
+        *
+        * @param office_rooms_list_input: list of office room objects
+        * @param meeting_rooms_list_input: list of meeting room objects
+        * @param employees_list_input: list of employee objects
+        """
         self.building_schedule = Schedule([])  # List of all events in the building
         self.office_rooms_list = office_rooms_list_input  # List of office_rooms
         self.meeting_rooms_list = meeting_rooms_list_input  # List of meeting rooms
@@ -24,6 +42,22 @@ class ScheduleManager:
         self.durations_of_meetings_in_minutes_list = []  # List of integers for the duration of meetings in minutes
 
     def setup(self, filename_inference, filename_opt):
+        """
+        * Main generator routine to create a consistent building schedule.
+        * It:
+        * 1) Samples how many meetings each meeting room will have.
+        * 2) Samples durations for each meeting.
+        * 3) Samples how many employees attend each meeting and which employees.
+        * 4) Creates Event objects (draft) and assigns employees to them.
+        * 5) Attempts to schedule each event into its room and into each employee's schedule
+        * while avoiding clashes. If a clash appears, the event time or attendees
+        * are re-sampled (with a maximum number of attempts).
+        * 6) Builds office occupancy events (normal working periods) based on gaps
+        * between employee events and writes CSV outputs.
+        *
+        * @param filename_inference: CSV filename for inference-style output
+        * @param filename_opt: CSV filename for optimization-style output (full occupancy table)
+        """
         # print("\nExperimental class setup:")
         # print("\nNumber of rooms " + str(self.number_of_rooms))
         # print("Number of employees " + str(self.number_of_employees))
@@ -212,6 +246,14 @@ class ScheduleManager:
         # self.show_gantt()
 
     def set_number_of_meetings_in_room(self, pmf):
+        """
+        * Sample a number of meetings for a room using the provided PMF object.
+        * pmf is assumed to provide:
+        * - convert_pmf_values_to_cmf(): returns cumulative probabilities (CDF)
+        * - get_values(index): returns the PMF value corresponding to an index
+        *
+        * Returns the sampled integer and appends it to number_of_meetings_in_rooms_list.
+        """
         # self.number_of_meetings_in_rooms_list.extend([self.randint(2, max_meeting_occupancy)])
         prob = random.random()
         cdf = pmf.convert_pmf_values_to_cmf()
@@ -223,6 +265,10 @@ class ScheduleManager:
         return sampled
 
     def set_sample_pmf_values(self, pmf):
+        """
+        * Generic sampler for PMFs following the same technique as set_number_of_meetings_in_room.
+        * Returns the sampled PMF value.
+        """
         prob = random.random()
         cdf = pmf.convert_pmf_values_to_cmf()
         sampled = -1  # -1 should never be returned under normal circumstances
@@ -232,6 +278,18 @@ class ScheduleManager:
         return sampled
 
     def random_event(self, start_of_day, work_hours_in_day, duration_of_meeting, room):
+        """
+        * Create a random Event object within the allowed working window.
+        * Start time is chosen on the hour plus optionally a half hour (0 or 30 mins).
+        * The function computes end time from the duration (in minutes) and corrects
+        * wrap-around if the end hour would exceed 23:00.
+        *
+        * @param start_of_day: integer hour offset representing earliest start (e.g. 5 = 05:00)
+        * @param work_hours_in_day: integer number of hours available to schedule within
+        * @param duration_of_meeting: integer duration in minutes
+        * @param room: room object
+        * @return: Event instance with chosen start/end times and empty employee list
+        """
         hour = self.randint(0, work_hours_in_day)
         half_hour = 30 * self.randint(0, 1)
         end_half_hour = math.floor((half_hour + duration_of_meeting) / 60)
@@ -255,6 +313,10 @@ class ScheduleManager:
         return Event(start_time, end_time, "Meeting", room, [])
 
     def find_duplicates(self, lst):
+        """
+        * Find items that appear more than once in a list and return them (unique values only).
+        * Useful for detecting duplicated employee assignments within an event.
+        """
         duplicates = []
         count = {}
         for item in lst:
@@ -268,6 +330,15 @@ class ScheduleManager:
         return duplicates
 
     def random_employee_duplicate(self, employee, employee_list):
+        """
+        * Sample a replacement employee at random from the global employee pool while
+        * ensuring the replacement is not the same as the provided `employee` and is not
+        * already present in the local `employee_list`.
+        *
+        * @param employee: employee object to avoid
+        * @param employee_list: list of employees currently assigned to the event
+        * @return: replacement_employee
+        """
         replacement_employee = None
         no_repeates = True
         while no_repeates:
@@ -282,51 +353,71 @@ class ScheduleManager:
         return replacement_employee
 
     def schedule_as_dictionary_format(self, schedule):
+        """
+        * Convert a Schedule object into the simplified dictionary/list format used
+        * by the gantt plotting routines: list of (start_str, end_str) tuples per event.
+        *
+        * @param schedule: Schedule object
+        * @return: tasks list e.g. [("08:00","09:00"), ...]
+        """
         tasks = []
         for event_index in range(schedule.get_number_of_events()):
             tasks.append((schedule.get_event(event_index).start_time.strftime("%H:%M"), schedule.get_event(event_index).end_time.strftime("%H:%M")))
         return tasks
 
     def gantt(self, tasks):
-    # Create a figure and axis
+        """
+        * Render a simple Gantt-like chart using matplotlib. `tasks` is expected to be
+        * a dict mapping labels -> list of (start_str, end_str) tuples in HH:MM format.
+        """
+        # Create a figure and axis
         fig, ax = plt.subplots()
 
-    # Set the y-axis limits and tick labels
+        # Set the y-axis limits and tick labels
         ax.set_ylim(0.5, len(tasks) + 0.5)
         ax.set_yticks(list(range(1, len(tasks) + 1)))
         ax.set_yticklabels(list(tasks.keys()))
 
-    # Plot each task as a series of horizontal bars, shifted down by half their height
+        # Plot each task as a series of horizontal bars, shifted down by half their height
         for i, (task, segments) in enumerate(tasks.items()):
             for start, end in segments:
                 height = 0.4
                 ax.broken_barh([(self.to_minutes(start), self.to_minutes(end) - self.to_minutes(start))], (i + 1 - height / 2, height),
                                facecolors='blue')
 
-    # Set the x-axis limits and tick labels
+        # Set the x-axis limits and tick labels
         ax.set_xlim(300, 1380)
         ax.set_xticks(range(300, 1380, 60))
         ax.set_xticklabels([self.to_time(minutes) for minutes in range(300, 1380, 60)])
 
-    #    # Set the axis labels and title
+        # Set the axis labels and title
         ax.set_xlabel('Time')
         ax.set_ylabel('Employee')
         ax.set_title('Daily Schedule')
-    #
-    #    # Show the chart
+
+        # Show the chart
         plt.show()
 
     def to_minutes(self, time_str):
-        """Convert a time string in the format 'HH:MM' to minutes"""
+        """
+        * Convert a time string in the format 'HH:MM' to minutes
+        """
         hours, minutes = map(int, time_str.split(':'))
         return hours * 60 + minutes
 
     def to_time(self, minutes):
-        """Convert minutes to a time string in the format 'HH:MM'"""
+        """
+        * Convert minutes to a time string in the format 'HH:MM'
+        """
         hours, minutes = divmod(minutes, 60)
         return f'{hours:02d}:{minutes:02d}'
 
     def number_of_meetings_and_durations(self):
+        """
+        * Populate two lists:
+        * - number_of_meetings_in_rooms_list: number of meetings sampled for each meeting room
+        * - durations_of_meetings_in_minutes_list: duration for each sampled meeting
+        """
         for meeting_room in range(len(self.meeting_rooms_list)):
             self.set_number_of_meetings_in_room(self.meeting_rooms_list[meeting_room].number_of_meetings_in_room_pmf)
             print()
@@ -335,6 +426,12 @@ class ScheduleManager:
                     self.set_sample_pmf_values(self.meeting_rooms_list[meeting_room].meeting_durations_in_minutes))
 
     def employees_in_meeting(self):
+        """
+        * For each meeting (per meeting room) sample how many people attend and then
+        * randomly pick that many employees from the global employee list. The picks
+        * are appended to a flattened people_in_meetings_list and the per-meeting
+        * counts appended to number_of_employees_in_meeting_list.
+        """
         for meeting_room in range(len(self.meeting_rooms_list)):
             for meeting_index in range(self.number_of_meetings_in_rooms_list[meeting_room]):
                 number_of_people = self.set_sample_pmf_values(
@@ -345,6 +442,10 @@ class ScheduleManager:
                         self.employees_list[self.randint(0, self.number_of_employees - 1)])
 
     def remove_duplicate_employees(self):
+        """
+        * For every event in the building schedule detect duplicated employee entries
+        * and replace each duplicate with a randomly sampled alternative employee.
+        """
         for event_index in range(self.building_schedule.get_number_of_events()):
             duplicate_employees = self.find_duplicates(self.building_schedule.get_event(event_index).employees)
             if not (len(duplicate_employees) == 0):
@@ -357,6 +458,11 @@ class ScheduleManager:
                         self.building_schedule.get_event(event_index).employees.index(employee)] = replacement_employee
 
     def show_gantt(self):
+        """
+        * Helper that prepares meeting-room, office-room and employee task dictionaries
+        * and calls gantt() to visualise them. The keys are labelled strings and values
+        * are lists of (start,end) tuples as produced by schedule_as_dictionary_format().
+        """
         meeting_room_tasks = {}
         for meeting_room in self.meeting_rooms_list:
             tasks = self.schedule_as_dictionary_format(meeting_room.events_schedule)
@@ -378,6 +484,10 @@ class ScheduleManager:
         self.gantt(employee_tasks)
 
     def print_sorted_all(self):
+        """
+        * Print the schedules for meeting rooms, offices and employees to stdout. Each
+        * schedule is sorted before printing for readability.
+        """
         for meeting_room in self.meeting_rooms_list:
             print("Meeting room: " + meeting_room.room_name)
             meeting_room.events_schedule.sort()
@@ -394,6 +504,14 @@ class ScheduleManager:
             employee.events_schedule.print()
 
     def optimization_output_file(self, filename, time_now_start):
+        """
+        * Produce a CSV file where each row corresponds to a timestamp and columns
+        * contain number of people present in each office and meeting room. The file
+        * includes a final section with maximum occupancy and estimated room costs.
+        *
+        * @param filename: output CSV path
+        * @param time_now_start: datetime object representing the first timestamp
+        """
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             # writer.writerow(["Room", "Time", "Occupied", "Occupancy", "Max_occupancy"])
@@ -446,6 +564,15 @@ class ScheduleManager:
             writer.writerow(room_cost_list)
 
     def inference_output_file(self, filename, timestep, time_now_start):
+        """
+        * Produce a CSV file where each row is a single (room, time) observation intended
+        * for inference/training of occupancy models. Each room/time is marked as occupied
+        * (1) or not (0) with the observed occupancy and the room maximum occupancy.
+        *
+        * @param filename: CSV output filename
+        * @param timestep: timedelta between observations
+        * @param time_now_start: datetime representing first observation time
+        """
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["Room", "Time", "Occupied", "Occupancy", "Max_occupancy"])
@@ -486,6 +613,14 @@ class ScheduleManager:
                 time_now_start = time_now_start + timestep
 
     def randint(self, a, b):
+        """
+        * Deterministic wrapper around sampling an integer uniformly in [a,b] using
+        * random.random() to make the behaviour explicit and testable.
+        *
+        * @param a: inclusive lower bound
+        * @param b: inclusive upper bound
+        * @return: sampled integer
+        """
         # Define the range of possible values
         # a Lower bound (inclusive)
         # b Upper bound (inclusive)
